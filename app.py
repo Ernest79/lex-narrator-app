@@ -46,8 +46,23 @@ if st.sidebar.button("Clear Conversation"):
     st.session_state.messages = []
     st.rerun()
 
+# --- SIDEBAR FEEDBACK REVIEW PANEL ---
+st.sidebar.markdown("---")
+st.sidebar.subheader("📊 Session Feedback Review")
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
+
+feedback_count = 0
+for i, msg in enumerate(st.session_state.messages):
+    if msg["role"] == "assistant" and "feedback" in msg:
+        feedback_count += 1
+        icon = "👍" if msg["feedback"] == 1 else "👎"
+        snippet = msg["content"][:25] + "..."
+        st.sidebar.write(f"{icon} **Msg {i}:** {snippet}")
+
+if feedback_count == 0:
+    st.sidebar.caption("No feedback logged yet this session.")
 
 # Display chat history
 for idx, message in enumerate(st.session_state.messages):
@@ -84,7 +99,6 @@ if prompt := st.chat_input("Speak with ALEX..."):
                 for m in st.session_state.messages:
                     api_messages.append({"role": m["role"], "content": m["content"]})
 
-                # Safe execution block
                 completion = client.chat.completions.create(
                     model=model_name,
                     messages=api_messages,
