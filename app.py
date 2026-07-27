@@ -6,16 +6,13 @@ st.set_page_config(page_title="ALEX - Universe Narrator", page_icon="✨")
 
 # --- PASSWORD GATE SETUP ---
 def check_password():
-    """Returns `True` if the user entered the correct password."""
-    
     def password_entered():
         if st.session_state["password"] == st.secrets["APP_PASSWORD"]:
             st.session_state["password_correct"] = True
-            del st.session_state["password"]  # Don't store the password
+            del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
 
-    # First run or incorrect password
     if "password_correct" not in st.session_state:
         st.subheader("🔒 Restricted Access")
         st.write("This app is private for the creators of the Alex-verse.")
@@ -29,40 +26,40 @@ def check_password():
     else:
         return True
 
-# Stop execution if password is not correct
 if not check_password():
     st.stop()
 
-# --- MAIN APP (Only loads if password is correct) ---
+# --- MAIN APP ---
 st.title("ALEX: Universe Narrator")
 st.write("Connected to the Alex-verse lore.")
 
-# Initialize OpenAI client using secure cloud secret
 client = OpenAI(
     base_url="https://api.featherless.ai/v1",
     api_key=st.secrets["FEATHERLESS_API_KEY"],
 )
 
-# Sidebar configuration for model settings
 model_name = st.sidebar.text_input("Model ID", value="ystemsrx/Qwen3-Sex")
 temperature = st.sidebar.slider("Temperature", min_value=0.0, max_value=1.0, value=0.7, step=0.1)
 max_tokens = st.sidebar.slider("Max Tokens", min_value=50, max_value=2048, value=500, step=50)
 
-# Clear chat history button
 if st.sidebar.button("Clear Conversation"):
     st.session_state.messages = []
     st.rerun()
 
-# Initialize chat history state
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Display prior chat messages
-for message in st.session_state.messages:
+# Display chat history
+for idx, message in enumerate(st.session_state.messages):
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
+        # Display saved feedback if it exists for past messages
+        if message["role"] == "assistant" and "feedback" in message:
+            fb = message["feedback"]
+            icon = "👍 Thumbs Up" if fb == 1 else "👎 Thumbs Down"
+            st.caption(f"Creator Feedback Recorded: {icon}")
 
-# User chat input
+# User input
 if prompt := st.chat_input("Speak with ALEX..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -126,8 +123,7 @@ No lecturing, no breaking character unnecessarily, no clinical tone. Alex redire
 
 """
 
-              # Build message payload with system persona and chat history
-                api_messages = [{"role": "system", "content": alex_persona + universe_lore}]
+         api_messages = [{"role": "system", "content": alex_persona + universe_lore}]
                 for m in st.session_state.messages:
                     api_messages.append({"role": m["role"], "content": m["content"]})
 
@@ -140,7 +136,25 @@ No lecturing, no breaking character unnecessarily, no clinical tone. Alex redire
                 
                 response_text = completion.choices[0].message.content
                 st.markdown(response_text)
-                st.session_state.messages.append({"role": "assistant", "content": response_text})
+                
+                # Append assistant message with placeholder for feedback
+                message_entry = {"role": "assistant", "content": response_text}
+                st.session_state.messages.append(message_entry)
                 
             except Exception as e:
                 st.error(f"Error communicating with model: {e}")
+
+# Add Feedback widget to the latest assistant message
+if st.session_state.messages and st.session_state.messages[-1]["role"] == "assistant":
+    last_idx = len(st.session_state.messages) - 1
+    
+    # Only show feedback widget if not already rated
+    if "feedback" not in st.session_state.messages[last_idx]:
+        feedback_key = f"feedback_{last_idx}"
+        
+        def save_feedback():
+            val = st.session_state.get(feedback_key)
+            if val is not None:
+                st.session_state.messages[last_idx]["feedback"] = val
+
+        st.feedback("thumbs", key=feedback_key, on_change=save_feedback)
