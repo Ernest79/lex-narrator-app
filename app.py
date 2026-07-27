@@ -125,7 +125,9 @@ No lecturing, no breaking character unnecessarily, no clinical tone. Alex redire
                 st.session_state.messages.append(message_entry)
                 
             except Exception as e:
-                st.error(f"Featherless API Error: {e}")
+                import traceback
+                st.error(f"Detailed Error: {e}")
+                st.code(traceback.format_exc())
 
 # Add Feedback widget to the latest assistant message
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "assistant":
