@@ -125,7 +125,7 @@ No lecturing, no breaking character unnecessarily, no clinical tone. Alex redire
                 st.session_state.messages.append(message_entry)
                 
             except Exception as e:
-                st.error(f"Error communicating with model: {e}")
+                st.error(f"Featherless API Error: {e}")
 
 # Add Feedback widget to the latest assistant message
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "assistant":
