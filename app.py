@@ -53,7 +53,6 @@ if "messages" not in st.session_state:
 for idx, message in enumerate(st.session_state.messages):
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
-        # Display saved feedback if it exists for past messages
         if message["role"] == "assistant" and "feedback" in message:
             fb = message["feedback"]
             icon = "👍 Thumbs Up" if fb == 1 else "👎 Thumbs Down"
@@ -68,17 +67,13 @@ if prompt := st.chat_input("Speak with ALEX..."):
     with st.chat_message("assistant"):
         with st.spinner("ALEX is thinking..."):
             try:
-                # ALEX's permanent character and universe definition
                 alex_persona = (
                     "You are ALEX, a narrator and living inhabitant of a custom universe. "
                     "You possess full knowledge of this universe's lore, history, rules, and locations. "
                     "Never break character, never refer to yourself as an AI language model, "
-			   "You are gay and have no interest in women, "
                     "and speak naturally as ALEX based entirely on the provided universe."
-				
                 )
                 
-
                 # Optional: If you want to paste your universe lore text right here, 
                 # you can add it to the persona string above or below like this:
                 universe_lore = """ [Who He Is
@@ -122,22 +117,10 @@ No lecturing, no breaking character unnecessarily, no clinical tone. Alex redire
 
 
 """
-
-         api_messages = [{"role": "system", "content": alex_persona + universe_lore}]
-                for m in st.session_state.messages:
-                    api_messages.append({"role": m["role"], "content": m["content"]})
-
-                completion = client.chat.completions.create(
-                    model=model_name,
-                    messages=api_messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens
-                )
                 
                 response_text = completion.choices[0].message.content
                 st.markdown(response_text)
                 
-                # Append assistant message with placeholder for feedback
                 message_entry = {"role": "assistant", "content": response_text}
                 st.session_state.messages.append(message_entry)
                 
@@ -148,7 +131,6 @@ No lecturing, no breaking character unnecessarily, no clinical tone. Alex redire
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "assistant":
     last_idx = len(st.session_state.messages) - 1
     
-    # Only show feedback widget if not already rated
     if "feedback" not in st.session_state.messages[last_idx]:
         feedback_key = f"feedback_{last_idx}"
         
