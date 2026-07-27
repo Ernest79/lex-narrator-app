@@ -1,8 +1,30 @@
 import streamlit as st
 from openai import OpenAI
+import json
+import os
 
 # Page configuration
 st.set_page_config(page_title="ALEX - Universe Narrator", page_icon="✨")
+
+FEEDBACK_FILE = "feedback_log.json"
+
+# Load shared feedback from file if it exists
+def load_shared_feedback():
+    if os.path.exists(FEEDBACK_FILE):
+        try:
+            with open(FEEDBACK_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            return []
+    return []
+
+# Save shared feedback to file
+def save_shared_feedback(feedback_list):
+    try:
+        with open(FEEDBACK_FILE, "w") as f:
+            json.dump(feedback_list, f, indent=4)
+    except Exception as e:
+        print(f"Error saving feedback file: {e}")
 
 # --- PASSWORD GATE SETUP ---
 def check_password():
@@ -46,28 +68,25 @@ if st.sidebar.button("Clear Conversation"):
     st.session_state.messages = []
     st.rerun()
 
-# Helper to calculate message numbers for assistant responses
+# --- SIDEBAR MASTER FEEDBACK REVIEW PANEL ---
+st.sidebar.markdown("---")
+st.sidebar.subheader("📊 Master Feedback Log")
+
+master_feedback = load_shared_feedback()
+
+if master_feedback:
+    st.sidebar.caption(f"Total logged feedback items: {len(master_feedback)}")
+    for item in master_feedback:
+        icon = "👍" if item["rating"] == 1 else "👎"
+        comment_display = f' - *"{item["comment"]}"*' if item["comment"] else " *(No comment)*"
+        st.sidebar.markdown(f"{icon} **Response #{item['resp_num']}**{comment_display}")
+        st.sidebar.text(f"Snippet: {item['snippet']}")
+        st.sidebar.markdown("---")
+else:
+    st.sidebar.caption("No feedback logged yet across sessions.")
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
-
-# --- SIDEBAR FEEDBACK REVIEW PANEL ---
-st.sidebar.markdown("---")
-st.sidebar.subheader("📊 Session Feedback Review")
-
-feedback_count = 0
-assistant_msg_num = 0
-
-for msg in st.session_state.messages:
-    if msg["role"] == "assistant":
-        assistant_msg_num += 1
-        if "feedback" in msg:
-            feedback_count += 1
-            icon = "👍" if msg["feedback"] == 1 else "👎"
-            comment_text = f' - *"{msg["comment"]}"*' if msg.get("comment") else ""
-            st.sidebar.write(f"{icon} **Response #{assistant_msg_num}**{comment_text}")
-
-if feedback_count == 0:
-    st.sidebar.caption("No feedback logged yet this session.")
 
 # --- DISPLAY CHAT HISTORY ---
 current_assistant_num = 0
@@ -145,7 +164,24 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "assis
             
             if submit_feedback:
                 val = 1 if "👍" in rating else 0
+                cleaned_comment = comment.strip()
+                
+                # Save locally in session state
                 st.session_state.messages[last_idx]["feedback"] = val
-                st.session_state.messages[last_idx]["comment"] = comment.strip()
-                st.success("Feedback submitted!")
+                st.session_state.messages[last_idx]["comment"] = cleaned_comment
+                
+                # Append to master shared feedback log file
+                current_master = load_shared_feedback()
+                assistant_total = sum(1 for m in st.session_state.messages if m["role"] == "assistant")
+                
+                feedback_entry = {
+                    "resp_num": assistant_total,
+                    "rating": val,
+                    "comment": cleaned_comment,
+                    "snippet": st.session_state.messages[last_idx]["content"][:30] + "..."
+                }
+                current_master.append(feedback_entry)
+                save_shared_feedback(current_master)
+                
+                st.success("Feedback submitted and synced to the master log!")
                 st.rerun()
