@@ -1,48 +1,77 @@
 import streamlit as st
 from openai import OpenAI
 
-st.set_page_config(page_title="Featherless AI Tester", page_icon="🪶", layout="centered")
+# Page configuration
+st.set_page_config(page_title="ALEX - Universe Narrator", page_icon="✨")
 
-st.title("🪶 Featherless AI Model Playground")
-st.write("Test your prompts and parameters against open-weights models on Featherless.")
+# --- PASSWORD GATE SETUP ---
+def check_password():
+    """Returns `True` if the user entered the correct password."""
+    
+    def password_entered():
+        if st.session_state["password"] == st.secrets["APP_PASSWORD"]:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # Don't store the password
+        else:
+            st.session_state["password_correct"] = False
 
-# Initialize Featherless client using OpenAI compatibility
+    # First run or incorrect password
+    if "password_correct" not in st.session_state:
+        st.subheader("🔒 Restricted Access")
+        st.write("This app is private for the creators of the Alex-verse.")
+        st.text_input("Enter Access Password", type="password", on_change=password_entered, key="password")
+        return False
+    elif not st.session_state["password_correct"]:
+        st.subheader("🔒 Restricted Access")
+        st.text_input("Enter Access Password", type="password", on_change=password_entered, key="password")
+        st.error("😕 Password incorrect. Try again.")
+        return False
+    else:
+        return True
+
+# Stop execution if password is not correct
+if not check_password():
+    st.stop()
+
+# --- MAIN APP (Only loads if password is correct) ---
+st.title("ALEX: Universe Narrator")
+st.write("Connected to the Alex-verse lore.")
+
+# Initialize OpenAI client using secure cloud secret
 client = OpenAI(
     base_url="https://api.featherless.ai/v1",
     api_key=st.secrets["FEATHERLESS_API_KEY"],
 )
 
-# Sidebar for configuration
-st.sidebar.header("Configuration")
+# Sidebar configuration for model settings
 model_name = st.sidebar.text_input("Model ID", value="ystemsrx/Qwen3-Sex")
 temperature = st.sidebar.slider("Temperature", min_value=0.0, max_value=1.0, value=0.7, step=0.1)
 max_tokens = st.sidebar.slider("Max Tokens", min_value=50, max_value=2048, value=500, step=50)
 
-# System prompt input
-#system_prompt = st.sidebar.text_area("System Prompt", value="You are a helpful, concise AI assistant.")
+# Clear chat history button
+if st.sidebar.button("Clear Conversation"):
+    st.session_state.messages = []
+    st.rerun()
 
-# Initialize chat history
+# Initialize chat history state
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Display past messages
+# Display prior chat messages
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# User prompt input
-if prompt := st.chat_input("Enter your prompt here..."):
-    # Append user message
+# User chat input
+if prompt := st.chat_input("Speak with ALEX..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Generate response from Featherless
     with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
+        with st.spinner("ALEX is thinking..."):
             try:
-              # Build message payload including your system prompt
-               # ALEX's permanent character and universe definition
+                # ALEX's permanent character and universe definition
                 alex_persona = (
                     "You are ALEX, a narrator and living inhabitant of a custom universe. "
                     "You possess full knowledge of this universe's lore, history, rules, and locations. "
@@ -97,7 +126,7 @@ No lecturing, no breaking character unnecessarily, no clinical tone. Alex redire
 
 """
 
-                # Build the message payload automatically starting with ALEX's persona
+              # Build message payload with system persona and chat history
                 api_messages = [{"role": "system", "content": alex_persona + universe_lore}]
                 for m in st.session_state.messages:
                     api_messages.append({"role": m["role"], "content": m["content"]})
@@ -108,11 +137,10 @@ No lecturing, no breaking character unnecessarily, no clinical tone. Alex redire
                     temperature=temperature,
                     max_tokens=max_tokens
                 )
-
-                response = completion.choices[0].message.content
+                
+                response_text = completion.choices[0].message.content
+                st.markdown(response_text)
+                st.session_state.messages.append({"role": "assistant", "content": response_text})
+                
             except Exception as e:
-                response = f"Error communicating with Featherless API: {e}"
-            
-            st.markdown(response)
-            
-    st.session_state.messages.append({"role": "assistant", "content": response})
+                st.error(f"Error communicating with model: {e}")
