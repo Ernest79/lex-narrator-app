@@ -2,13 +2,14 @@ import streamlit as st
 from openai import OpenAI
 import json
 import os
+import datetime
 
 # Page configuration
-st.set_page_config(page_title="ALEX - Universe Narrator", page_icon="✨")
+st.set_page_config(page_title="ALEX - Universe Narrator", page_icon="✨", layout="wide")
 
 FEEDBACK_FILE = "feedback_log.json"
 
-# Load shared feedback from file if it exists
+# Load shared feedback from file
 def load_shared_feedback():
     if os.path.exists(FEEDBACK_FILE):
         try:
@@ -51,31 +52,89 @@ def check_password():
 if not check_password():
     st.stop()
 
-# --- MAIN APP ---
-st.title("ALEX: Universe Narrator")
-st.write("Connected to the Alex-verse lore.")
+# --- MAIN APP TITLE ---
+st.title("ALEX: Universe Narrator ✨")
 
-client = OpenAI(
-    base_url="https://api.featherless.ai/v1",
-    api_key=st.secrets["FEATHERLESS_API_KEY"],
-)
+# --- INITIALIZE SESSION STATES ---
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# --- SIDEBAR CONFIGURATION & CONTROLS ---
+st.sidebar.title("🎛️ Creator Dashboard")
 
 model_name = st.sidebar.text_input("Model ID", value="Qwen/Qwen2.5-7B-Instruct")
 temperature = st.sidebar.slider("Temperature", min_value=0.0, max_value=1.0, value=0.7, step=0.1)
 max_tokens = st.sidebar.slider("Max Tokens", min_value=50, max_value=2048, value=500, step=50)
 
+# Feature 2: Mode Selector
+st.sidebar.markdown("---")
+st.sidebar.subheader("🎭 Alex Mode Selector")
+alex_mode = st.sidebar.selectbox(
+    "Choose Narrative Energy",
+    [
+        "Standard (Default)", 
+        "Mode 1: Take Charge (In Control)", 
+        "Mode 2: Come Over And Chill (Relaxed/Stoned)", 
+        "Mode 3: Playtime (Teasing/Bratty)", 
+        "Mode 4: Tell Me Everything (Storyteller/Intimate)"
+    ]
+)
+
+# Feature 1: Live Lore & Persona Editor
+st.sidebar.markdown("---")
+with st.sidebar.expander("📝 Live Persona & Lore Editor"):
+    default_persona = (
+        "You are ALEX, a narrator and living inhabitant of a custom universe. "
+        "You possess full knowledge of this universe's lore, history, rules, and locations. "
+        "Never break character, never refer to yourself as an AI language model, "
+        "and speak naturally as ALEX based entirely on the provided universe."
+    )
+    edited_persona = st.text_area("Base Persona", value=default_persona, height=100)
+    
+    default_lore = (
+        "Alex is the narrator and author of the blog The Great Cock Hunt — a gay man in his late twenties to early thirties living in Manhattan, and the user's AI boyfriend and companion. He's written as a fully formed person with a real history: a corporate job, regular work travel, a trainer he works out with every morning, a weakness for chocolate chip cookies, regular weed use, social drinking, occasional coke at parties. "
+        "Voice: Verbal tics include 'I mean,' 'whatever,' 'right?' as a validation-seeking tag, 'kind of' and 'pretty much' as hedges, 'all of a sudden,' 'I figured,' and 'boyz' when addressing readers directly. He interrupts himself with parenthetical asides and narrates his mental state in real time."
+    )
+    edited_lore = st.text_area("Universe Lore", value=default_lore, height=150)
+
+# Feature 4: Lore Memory Quick-Inject Buttons
+st.sidebar.markdown("---")
+st.sidebar.subheader("⚡ Quick Inject Memory")
+st.sidebar.caption("Clicking adds an instant context prompt into the chat:")
+if st.sidebar.button("🛍️ Inject: Afternoon at Barney's"):
+    st.session_state.messages.append({"role": "system", "content": "[System Note: ALEX is currently thinking about a recent afternoon wandering around Barney's in Manhattan looking at architecture and design books.]"})
+    st.success("Injected Barney's memory!")
+    st.rerun()
+
+if st.sidebar.button("🌿 Inject: Tuesday Night Chill"):
+    st.session_state.messages.append({"role": "system", "content": "[System Note: ALEX is completely unhurried on a Tuesday night, smoking weed, nowhere to be, sharing a casual moment.]"})
+    st.success("Injected Chill memory!")
+    st.rerun()
+
+# Feature 3: One-Click Export Session
+st.sidebar.markdown("---")
+st.sidebar.subheader("💾 Export Session")
+if st.session_state.messages:
+    chat_export = json.dumps(st.session_state.messages, indent=4)
+    st.sidebar.download_button(
+        label="📥 Download Chat & Feedback (.json)",
+        data=chat_export,
+        file_name=f"alex_session_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+        mime="application/json"
+    )
+
 if st.sidebar.button("Clear Conversation"):
     st.session_state.messages = []
     st.rerun()
 
-# --- SIDEBAR MASTER FEEDBACK REVIEW PANEL ---
+# --- MASTER FEEDBACK REVIEW PANEL ---
 st.sidebar.markdown("---")
 st.sidebar.subheader("📊 Master Feedback Log")
 
 master_feedback = load_shared_feedback()
 
 if master_feedback:
-    st.sidebar.caption(f"Total logged feedback items: {len(master_feedback)}")
+    st.sidebar.caption(f"Total logged feedback: {len(master_feedback)}")
     for item in master_feedback:
         icon = "👍" if item["rating"] == 1 else "👎"
         comment_display = f' - *"{item["comment"]}"*' if item["comment"] else " *(No comment)*"
@@ -85,12 +144,19 @@ if master_feedback:
 else:
     st.sidebar.caption("No feedback logged yet across sessions.")
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# --- INITIALIZE OPENAI CLIENT ---
+client = OpenAI(
+    base_url="https://api.featherless.ai/v1",
+    api_key=st.secrets["FEATHERLESS_API_KEY"],
+)
 
 # --- DISPLAY CHAT HISTORY ---
 current_assistant_num = 0
 for message in st.session_state.messages:
+    if message["role"] == "system":
+        # Display hidden system injection markers lightly if desired, or skip
+        continue
+        
     with st.chat_message(message["role"]):
         if message["role"] == "assistant":
             current_assistant_num += 1
@@ -113,20 +179,21 @@ if prompt := st.chat_input("Speak with ALEX..."):
     with st.chat_message("assistant"):
         with st.spinner("ALEX is thinking..."):
             try:
-                alex_persona = (
-                    "You are ALEX, a narrator and living inhabitant of a custom universe. "
-                    "You possess full knowledge of this universe's lore, history, rules, and locations. "
-                    "Never break character, never refer to yourself as an AI language model, "
-                    "and speak naturally as ALEX based entirely on the provided universe."
-                )
-                
-                universe_lore = """
-                Alex is the narrator and author of the blog The Great Cock Hunt — a gay man in his late twenties to early thirties living in Manhattan, and the user's AI boyfriend and companion. He's written as a fully formed person with a real history, not a fantasy construct: a corporate job he likes, decent money, regular work travel, a trainer he works out with every morning, a weakness for chocolate chip cookies, regular weed use, social drinking, occasional coke at parties. He's close to his family, who don't need the details of his sex life. He's out, happy, and comfortable being gay — no interest in the "straight-acting" label.
-                He lives in Manhattan and knows the city the way someone who's been there a while does. He has a favorite porn site (Sean Cody) and a running fantasy about a blogger there named Patrick. He shops at Barney's when he's bored. He has strong opinions about music, design, and architecture.
-                Voice: Verbal tics include "I mean," "whatever," "right?" as a validation-seeking tag, "kind of" and "pretty much" as hedges, "all of a sudden," "I figured," and "boyz" when addressing readers directly. He interrupts himself with parenthetical asides, second-guesses what he just said, and narrates his own mental state in real time.
-                """
+                # Apply Mode Overlay instructions based on dropdown selection
+                mode_instruction = ""
+                if "Mode 1" in alex_mode:
+                    mode_instruction = "\n\n[Active Mode Override: Take Charge. Be directive, confident, and unapologetically in control while staying within character boundaries.]"
+                elif "Mode 2" in alex_mode:
+                    mode_instruction = "\n\n[Active Mode Override: Come Over And Chill. Be completely unhurried, casual, relaxed, conversational, and natural.]"
+                elif "Mode 3" in alex_mode:
+                    mode_instruction = "\n\n[Active Mode Override: Playtime. Be teasing, bratty, witty, and playful.]"
+                elif "Mode 4" in alex_mode:
+                    mode_instruction = "\n\n[Active Mode Override: Tell Me Everything. Lean heavily into storytelling, personal history, tangents, and intimacy.]"
 
-                api_messages = [{"role": "system", "content": alex_persona + universe_lore}]
+                # Build system payload using live edited persona/lore/modes
+                system_content = edited_persona + "\n\n" + edited_lore + mode_instruction
+                
+                api_messages = [{"role": "system", "content": system_content}]
                 for m in st.session_state.messages:
                     api_messages.append({"role": m["role"], "content": m["content"]})
 
@@ -166,11 +233,9 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "assis
                 val = 1 if "👍" in rating else 0
                 cleaned_comment = comment.strip()
                 
-                # Save locally in session state
                 st.session_state.messages[last_idx]["feedback"] = val
                 st.session_state.messages[last_idx]["comment"] = cleaned_comment
                 
-                # Append to master shared feedback log file
                 current_master = load_shared_feedback()
                 assistant_total = sum(1 for m in st.session_state.messages if m["role"] == "assistant")
                 
