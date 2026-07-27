@@ -46,34 +46,46 @@ if st.sidebar.button("Clear Conversation"):
     st.session_state.messages = []
     st.rerun()
 
+# Helper to calculate message numbers for assistant responses
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
 # --- SIDEBAR FEEDBACK REVIEW PANEL ---
 st.sidebar.markdown("---")
 st.sidebar.subheader("📊 Session Feedback Review")
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
 feedback_count = 0
-for i, msg in enumerate(st.session_state.messages):
-    if msg["role"] == "assistant" and "feedback" in msg:
-        feedback_count += 1
-        icon = "👍" if msg["feedback"] == 1 else "👎"
-        snippet = msg["content"][:25] + "..."
-        st.sidebar.write(f"{icon} **Msg {i}:** {snippet}")
+assistant_msg_num = 0
+
+for msg in st.session_state.messages:
+    if msg["role"] == "assistant":
+        assistant_msg_num += 1
+        if "feedback" in msg:
+            feedback_count += 1
+            icon = "👍" if msg["feedback"] == 1 else "👎"
+            comment_text = f' - *"{msg["comment"]}"*' if msg.get("comment") else ""
+            st.sidebar.write(f"{icon} **Response #{assistant_msg_num}**{comment_text}")
 
 if feedback_count == 0:
     st.sidebar.caption("No feedback logged yet this session.")
 
-# Display chat history
-for idx, message in enumerate(st.session_state.messages):
+# --- DISPLAY CHAT HISTORY ---
+current_assistant_num = 0
+for message in st.session_state.messages:
     with st.chat_message(message["role"]):
+        if message["role"] == "assistant":
+            current_assistant_num += 1
+            st.markdown(f"**(Response #{current_assistant_num})**")
+            
         st.markdown(message["content"])
+        
         if message["role"] == "assistant" and "feedback" in message:
             fb = message["feedback"]
             icon = "👍 Thumbs Up" if fb == 1 else "👎 Thumbs Down"
-            st.caption(f"Creator Feedback Recorded: {icon}")
+            cmt = f' | Comment: "{message["comment"]}"' if message.get("comment") else ""
+            st.caption(f"Creator Feedback Recorded: {icon}{cmt}")
 
-# User input
+# --- USER INPUT ---
 if prompt := st.chat_input("Speak with ALEX..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -111,22 +123,29 @@ if prompt := st.chat_input("Speak with ALEX..."):
                     st.markdown(response_text)
                     message_entry = {"role": "assistant", "content": response_text}
                     st.session_state.messages.append(message_entry)
+                    st.rerun()
                 else:
                     st.error("Received an empty response from the model.")
                 
             except Exception as e:
                 st.error(f"Featherless API Error: {e}")
 
-# Add Feedback widget to the latest assistant message
+# --- FEEDBACK FORM FOR LATEST ASSISTANT RESPONSE ---
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "assistant":
     last_idx = len(st.session_state.messages) - 1
     
     if "feedback" not in st.session_state.messages[last_idx]:
-        feedback_key = f"feedback_{last_idx}"
+        st.markdown("---")
+        st.write("### 💬 Rate & Review Response")
         
-        def save_feedback():
-            val = st.session_state.get(feedback_key)
-            if val is not None:
+        with st.form(key=f"feedback_form_{last_idx}"):
+            rating = st.radio("Rating", options=["👍 Thumbs Up", "👎 Thumbs Down"], horizontal=True)
+            comment = st.text_input("Notes / Reason (optional):", placeholder="e.g., Captured his voice perfectly, or missed lore detail...")
+            submit_feedback = st.form_submit_button("Submit Feedback")
+            
+            if submit_feedback:
+                val = 1 if "👍" in rating else 0
                 st.session_state.messages[last_idx]["feedback"] = val
-
-        st.feedback("thumbs", key=feedback_key, on_change=save_feedback)
+                st.session_state.messages[last_idx]["comment"] = comment.strip()
+                st.success("Feedback submitted!")
+                st.rerun()
