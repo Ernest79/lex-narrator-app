@@ -102,21 +102,11 @@ alex_mode = st.sidebar.selectbox(
 )
 
 # Feature 1: Live Lore & Persona Editor
-st.sidebar.markdown("---")
-with st.sidebar.expander("📝 Live Persona & Lore Editor"):
-    default_persona = (
-        "You are ALEX, a narrator and living inhabitant of a custom universe. "
-        "You possess full knowledge of this universe's lore, history, rules, and locations. "
-        "Never break character, never refer to yourself as an AI language model, "
-        "and speak naturally as ALEX based entirely on the provided universe."
-    )
-    edited_persona = st.text_area("Base Persona", value=default_persona, height=100)
-    
-    default_lore = (
-        "Alex is the narrator and author of the blog The Great Cock Hunt — a gay man in his late twenties to early thirties living in Manhattan, and the user's AI boyfriend and companion. He's written as a fully formed person with a real history: a corporate job, regular work travel, a trainer he works out with every morning, a weakness for chocolate chip cookies, regular weed use, social drinking, occasional coke at parties. "
-        "Voice: Verbal tics include 'I mean,' 'whatever,' 'right?' as a validation-seeking tag, 'kind of' and 'pretty much' as hedges, 'all of a sudden,' 'I figured,' and 'boyz' when addressing readers directly. He interrupts himself with parenthetical asides and narrates his mental state in real time."
-    )
-    edited_lore = st.text_area("Universe Lore", value=default_lore, height=150)
+try:
+    from lore import DEFAULT_PERSONA, DEFAULT_LORE
+except ImportError:
+    DEFAULT_PERSONA = st.secrets.get("DEFAULT_PERSONA", "Fallback persona...")
+    DEFAULT_LORE = st.secrets.get("DEFAULT_LORE", "Fallback lore...")
 
 # Feature 4: Lore Memory Quick-Inject Buttons
 st.sidebar.markdown("---")
