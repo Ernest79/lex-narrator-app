@@ -4,6 +4,13 @@ import json
 import os
 import datetime
 
+# --- SECURE LORE IMPORT & FALLBACK ---
+try:
+    from lore import DEFAULT_PERSONA, DEFAULT_LORE
+except ImportError:
+    DEFAULT_PERSONA = st.secrets.get("DEFAULT_PERSONA", "Default persona fallback...")
+    DEFAULT_LORE = st.secrets.get("DEFAULT_LORE", "Default lore fallback...")
+
 # Page configuration
 st.set_page_config(page_title="ALEX - Universe Narrator", page_icon="✨", layout="wide")
 
@@ -27,20 +34,7 @@ def save_shared_feedback(feedback_list):
     except Exception as e:
         print(f"Error saving feedback file: {e}")
 
-
 # --- PASSWORD GATE SETUP ---
-featherless_key = os.getenv("FEATHERLESS_API_KEY")
-if not featherless_key:
-    try:
-        featherless_key = st.secrets["FEATHERLESS_API_KEY"]
-    except Exception:
-        pass
-
-client = OpenAI(
-    base_url="https://api.featherless.ai/v1",
-    api_key=featherless_key,
-)
-
 def check_password():
     """Returns `True` if the user had the correct password."""
     def password_entered():
@@ -73,13 +67,18 @@ def check_password():
 if not check_password():
     st.stop()
 
-# 2. ADD IT HERE: Define the sidebar controls right after the password gate
-with st.sidebar.expander("📝 Live Persona & Lore Editor"):
-    edited_persona = st.text_area("Base Persona", value=DEFAULT_PERSONA, height=100)
-    edited_lore = st.text_area("Universe Lore", value=DEFAULT_LORE, height=150)
+# --- INITIALIZE OPENAI CLIENT ---
+featherless_key = os.getenv("FEATHERLESS_API_KEY")
+if not featherless_key:
+    try:
+        featherless_key = st.secrets["FEATHERLESS_API_KEY"]
+    except Exception:
+        pass
 
-# 3. Your chat logic and API calls come AFTER this point
-# (so they can successfully read edited_persona and edited_lore)
+client = OpenAI(
+    base_url="https://api.featherless.ai/v1",
+    api_key=featherless_key,
+)
 
 # --- MAIN APP TITLE ---
 st.title("ALEX: Universe Narrator ✨")
@@ -110,11 +109,10 @@ alex_mode = st.sidebar.selectbox(
 )
 
 # Feature 1: Live Lore & Persona Editor
-try:
-    from lore import DEFAULT_PERSONA, DEFAULT_LORE
-except ImportError:
-    edited_persona = st.secrets.get("DEFAULT_PERSONA", "Fallback persona...")
-    edited_lore = st.secrets.get("DEFAULT_LORE", "Fallback lore...")
+st.sidebar.markdown("---")
+with st.sidebar.expander("📝 Live Persona & Lore Editor"):
+    edited_persona = st.text_area("Base Persona", value=DEFAULT_PERSONA, height=100)
+    edited_lore = st.text_area("Universe Lore", value=DEFAULT_LORE, height=150)
 
 # Feature 4: Lore Memory Quick-Inject Buttons
 st.sidebar.markdown("---")
@@ -163,17 +161,10 @@ if master_feedback:
 else:
     st.sidebar.caption("No feedback logged yet across sessions.")
 
-# --- INITIALIZE OPENAI CLIENT ---
-client = OpenAI(
-    base_url="https://api.featherless.ai/v1",
-    api_key=st.secrets["FEATHERLESS_API_KEY"],
-)
-
 # --- DISPLAY CHAT HISTORY ---
 current_assistant_num = 0
 for message in st.session_state.messages:
     if message["role"] == "system":
-        # Display hidden system injection markers lightly if desired, or skip
         continue
         
     with st.chat_message(message["role"]):
