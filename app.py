@@ -28,13 +28,18 @@ def save_shared_feedback(feedback_list):
         print(f"Error saving feedback file: {e}")
 
 # --- PASSWORD GATE SETUP ---
-def check_password():
-    def password_entered():
-        if st.session_state["password"] == st.secrets["APP_PASSWORD"]:
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]
-        else:
-            st.session_state["password_correct"] = False
+# Securely fetch API key from environment variables (local) or st.secrets (cloud fallback)
+featherless_key = os.getenv("FEATHERLESS_API_KEY")
+if not featherless_key:
+    try:
+        featherless_key = st.secrets["FEATHERLESS_API_KEY"]
+    except Exception:
+        pass
+
+client = OpenAI(
+    base_url="https://api.featherless.ai/v1",
+    api_key=featherless_key,
+)
 
     if "password_correct" not in st.session_state:
         st.subheader("🔒 Restricted Access")
