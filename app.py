@@ -73,6 +73,14 @@ def check_password():
 if not check_password():
     st.stop()
 
+# 2. ADD IT HERE: Define the sidebar controls right after the password gate
+with st.sidebar.expander("📝 Live Persona & Lore Editor"):
+    edited_persona = st.text_area("Base Persona", value=DEFAULT_PERSONA, height=100)
+    edited_lore = st.text_area("Universe Lore", value=DEFAULT_LORE, height=150)
+
+# 3. Your chat logic and API calls come AFTER this point
+# (so they can successfully read edited_persona and edited_lore)
+
 # --- MAIN APP TITLE ---
 st.title("ALEX: Universe Narrator ✨")
 
@@ -105,8 +113,8 @@ alex_mode = st.sidebar.selectbox(
 try:
     from lore import DEFAULT_PERSONA, DEFAULT_LORE
 except ImportError:
-    DEFAULT_PERSONA = st.secrets.get("DEFAULT_PERSONA", "Fallback persona...")
-    DEFAULT_LORE = st.secrets.get("DEFAULT_LORE", "Fallback lore...")
+    edited_persona = st.secrets.get("DEFAULT_PERSONA", "Fallback persona...")
+    edited_lore = st.secrets.get("DEFAULT_LORE", "Fallback lore...")
 
 # Feature 4: Lore Memory Quick-Inject Buttons
 st.sidebar.markdown("---")
