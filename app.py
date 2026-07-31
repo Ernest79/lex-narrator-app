@@ -14,6 +14,38 @@ except ImportError:
 # Page configuration
 st.set_page_config(page_title="ALEX - Universe Narrator", page_icon="✨", layout="wide")
 
+# --- CUSTOM CSS & THEME STYLING ---
+st.markdown("""
+<style>
+    /* Main Background & Theme Colors */
+    .stApp {
+        background: linear-gradient(180deg, #3B4D66 0%, #0D121A 50%, #000000 95%);
+        color: #FAFAFA;
+    }
+    
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {
+        background-color: #0D121A;
+        border-right: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    /* Matte Card Fills & Glass Overlays */
+    div.stExpander, .stChatMessage, div.stForm {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+    }
+    
+    /* Profile Tag Buttons Container */
+    .tag-container {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 FEEDBACK_FILE = "feedback_log.json"
 
 # Load shared feedback from file
@@ -47,7 +79,7 @@ def check_password():
                 
         if st.session_state["password"] == stored_password:
             st.session_state["password_correct"] = True
-            del st.session_state["password"]  # don't store password
+            del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
 
@@ -80,71 +112,63 @@ client = OpenAI(
     api_key=featherless_key,
 )
 
-# --- MAIN APP TITLE ---
+# --- MAIN APP HEADER & IMAGE SECTION ---
 st.title("ALEX: Universe Narrator ✨")
+
+# Image posting / upload section below title
+with st.expander("🖼️ Universe Image Banner / Upload", expanded=False):
+    uploaded_image = st.file_uploader("Upload profile or universe reference image", type=["png", "jpg", "jpeg"])
+    if uploaded_image is not None:
+        st.image(uploaded_image, use_container_width=True, caption="Active Universe Reference")
+    else:
+        st.caption("Upload an image to anchor the current scene or persona vibe.")
 
 # --- INITIALIZE SESSION STATES ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- SIDEBAR CONFIGURATION & CONTROLS ---
+# --- SIDEBAR CONFIGURATION (DROPDOWNS & FEEDBACK ON LEFT) ---
 st.sidebar.title("🎛️ Creator Dashboard")
 
-model_name = st.sidebar.text_input("Model ID", value="Qwen/Qwen2.5-7B-Instruct")
-temperature = st.sidebar.slider("Temperature", min_value=0.0, max_value=1.0, value=0.7, step=0.1)
-max_tokens = st.sidebar.slider("Max Tokens", min_value=50, max_value=2048, value=500, step=50)
+# Dropdown 1: Model & Generation Settings
+with st.sidebar.expander("⚙️ Model Settings", expanded=False):
+    model_name = st.text_input("Model ID", value="Qwen/Qwen2.5-7B-Instruct")
+    temperature = st.slider("Temperature", min_value=0.0, max_value=1.0, value=0.7, step=0.1)
+    max_tokens = st.slider("Max Tokens", min_value=50, max_value=2048, value=500, step=50)
 
-# Feature 2: Mode Selector
-st.sidebar.markdown("---")
-st.sidebar.subheader("🎭 Alex Mode Selector")
-alex_mode = st.sidebar.selectbox(
-    "Choose Narrative Energy",
-    [
-        "Standard (Default)", 
-        "Mode 1: Take Charge (In Control)", 
-        "Mode 2: Come Over And Chill (Relaxed/Stoned)", 
-        "Mode 3: Playtime (Teasing/Bratty)", 
-        "Mode 4: Tell Me Everything (Storyteller/Intimate)"
-    ]
-)
+# Dropdown 2: Narrative Modes
+with st.sidebar.expander("🎭 Narrative Energy Modes", expanded=False):
+    alex_mode = st.selectbox(
+        "Choose Mode",
+        [
+            "Standard (Default)", 
+            "Mode 1: Take Charge (In Control)", 
+            "Mode 2: Come Over And Chill (Relaxed/Stoned)", 
+            "Mode 3: Playtime (Teasing/Bratty)", 
+            "Mode 4: Tell Me Everything (Storyteller/Intimate)"
+        ]
+    )
 
-# Feature 1: Live Lore & Persona Editor
-st.sidebar.markdown("---")
-with st.sidebar.expander("📝 Live Persona & Lore Editor"):
+# Dropdown 3: Live Lore & Persona Editor
+with st.sidebar.expander("📝 Live Persona & Lore Editor", expanded=False):
     edited_persona = st.text_area("Base Persona", value=DEFAULT_PERSONA, height=100)
     edited_lore = st.text_area("Universe Lore", value=DEFAULT_LORE, height=150)
 
-# Feature 4: Lore Memory Quick-Inject Buttons
-st.sidebar.markdown("---")
-st.sidebar.subheader("⚡ Quick Inject Memory")
-st.sidebar.caption("Clicking adds an instant context prompt into the chat:")
-if st.sidebar.button("🛍️ Inject: Afternoon at Barney's"):
-    st.session_state.messages.append({"role": "system", "content": "[System Note: ALEX is currently thinking about a recent afternoon wandering around Barney's in Manhattan looking at architecture and design books.]"})
-    st.success("Injected Barney's memory!")
-    st.rerun()
+# Dropdown 4: Session Utilities & Export
+with st.sidebar.expander("💾 Session Tools", expanded=False):
+    if st.session_state.messages:
+        chat_export = json.dumps(st.session_state.messages, indent=4)
+        st.download_button(
+            label="📥 Download Chat (.json)",
+            data=chat_export,
+            file_name=f"alex_session_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+            mime="application/json"
+        )
+    if st.button("Clear Conversation"):
+        st.session_state.messages = []
+        st.rerun()
 
-if st.sidebar.button("🌿 Inject: Tuesday Night Chill"):
-    st.session_state.messages.append({"role": "system", "content": "[System Note: ALEX is completely unhurried on a Tuesday night, smoking weed, nowhere to be, sharing a casual moment.]"})
-    st.success("Injected Chill memory!")
-    st.rerun()
-
-# Feature 3: One-Click Export Session
-st.sidebar.markdown("---")
-st.sidebar.subheader("💾 Export Session")
-if st.session_state.messages:
-    chat_export = json.dumps(st.session_state.messages, indent=4)
-    st.sidebar.download_button(
-        label="📥 Download Chat & Feedback (.json)",
-        data=chat_export,
-        file_name=f"alex_session_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-        mime="application/json"
-    )
-
-if st.sidebar.button("Clear Conversation"):
-    st.session_state.messages = []
-    st.rerun()
-
-# --- MASTER FEEDBACK REVIEW PANEL ---
+# --- MASTER FEEDBACK REVIEW PANEL (KEPT ON THE LEFT SIDEBAR) ---
 st.sidebar.markdown("---")
 st.sidebar.subheader("📊 Master Feedback Log")
 
@@ -160,6 +184,31 @@ if master_feedback:
         st.sidebar.markdown("---")
 else:
     st.sidebar.caption("No feedback logged yet across sessions.")
+
+
+# --- PROFILE-STYLE TAG BUTTONS AT THE TOP ---
+st.markdown("##### ⚡ Quick Memory Tags")
+tag_col1, tag_col2, tag_col3 = st.columns(3)
+
+with tag_col1:
+    if st.button("🛍️ Barney's Afternoon", use_container_width=True):
+        st.session_state.messages.append({"role": "system", "content": "[System Note: ALEX is currently thinking about a recent afternoon wandering around Barney's in Manhattan looking at architecture and design books.]"})
+        st.success("Injected Barney's memory!")
+        st.rerun()
+
+with tag_col2:
+    if st.button("🌿 Tuesday Chill", use_container_width=True):
+        st.session_state.messages.append({"role": "system", "content": "[System Note: ALEX is completely unhurried on a Tuesday night, smoking weed, nowhere to be, sharing a casual moment.]"})
+        st.success("Injected Chill memory!")
+        st.rerun()
+
+with tag_col3:
+    if st.button("✈️ Travel Mode", use_container_width=True):
+        st.session_state.messages.append({"role": "system", "content": "[System Note: ALEX is currently away on a corporate work travel trip, texting from a hotel room.]"})
+        st.success("Injected Travel memory!")
+        st.rerun()
+
+st.markdown("---")
 
 # --- DISPLAY CHAT HISTORY ---
 current_assistant_num = 0
