@@ -252,10 +252,10 @@ if prompt := st.chat_input("Speak with ALEX..."):
                 elif "Mode 4" in alex_mode:
                     mode_instruction = "\n\n[Active Mode Override: Tell Me Everything. Lean heavily into storytelling, personal history, tangents, and intimacy.]"
 
-                # Build system payload using live edited persona/lore/modes + anti-thinking 	guardrail
-anti_thinking_directive = "\n\n[System Directive: Never output your internal thinking process, planning, outlines, or meta-commentary. Output only the final narrative prose directly and immediately.]"
-
-system_content = edited_persona + "\n\n" + edited_lore + anti_thinking_directive + mode_instruction
+                # Build system payload using live edited persona/lore/modes + anti-thinking guardrail
+                anti_thinking_directive = "\n\n[System Directive: Never output your internal thinking process, planning, outlines, or meta-commentary. Output only the final narrative prose directly and immediately.]"
+                
+                system_content = edited_persona + "\n\n" + edited_lore + anti_thinking_directive + mode_instruction
                 
                 api_messages = [{"role": "system", "content": system_content}]
                 for m in st.session_state.messages:
