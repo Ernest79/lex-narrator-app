@@ -3,6 +3,9 @@ from openai import OpenAI
 import json
 import os
 import datetime
+import re
+
+
 
 # --- SECURE LORE IMPORT & FALLBACK ---
 try:
@@ -249,8 +252,10 @@ if prompt := st.chat_input("Speak with ALEX..."):
                 elif "Mode 4" in alex_mode:
                     mode_instruction = "\n\n[Active Mode Override: Tell Me Everything. Lean heavily into storytelling, personal history, tangents, and intimacy.]"
 
-                # Build system payload using live edited persona/lore/modes
-                system_content = edited_persona + "\n\n" + edited_lore + mode_instruction
+                # Build system payload using live edited persona/lore/modes + anti-thinking 	guardrail
+anti_thinking_directive = "\n\n[System Directive: Never output your internal thinking process, planning, outlines, or meta-commentary. Output only the final narrative prose directly and immediately.]"
+
+system_content = edited_persona + "\n\n" + edited_lore + anti_thinking_directive + mode_instruction
                 
                 api_messages = [{"role": "system", "content": system_content}]
                 for m in st.session_state.messages:
@@ -264,7 +269,11 @@ if prompt := st.chat_input("Speak with ALEX..."):
                 )
                 
                 if completion and completion.choices:
-                    response_text = completion.choices[0].message.content
+                    raw_response = completion.choices[0].message.content
+                    
+                    # Clean out any accidental <think> tags or reasoning wrappers
+                    response_text = re.sub(r'<think>.*?</think>', '', raw_response, flags=re.DOTALL).strip()
+                    
                     st.markdown(response_text)
                     message_entry = {"role": "assistant", "content": response_text}
                     st.session_state.messages.append(message_entry)
