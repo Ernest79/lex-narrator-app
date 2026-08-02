@@ -241,7 +241,7 @@ if prompt := st.chat_input("Speak with ALEX..."):
     with st.chat_message("assistant"):
         with st.spinner("ALEX is thinking..."):
             try:
-                # Apply Mode Overlay instructions based on dropdown selection
+               # Apply Mode Overlay instructions based on dropdown selection
                 mode_instruction = ""
                 if "Mode 1" in alex_mode:
                     mode_instruction = "\n\n[Active Mode Override: Take Charge. Be directive, confident, and unapologetically in control while staying within character boundaries.]"
