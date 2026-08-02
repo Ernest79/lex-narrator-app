@@ -257,32 +257,33 @@ if prompt := st.chat_input("Speak with ALEX..."):
                 
                 system_content = edited_persona + "\n\n" + edited_lore + anti_thinking_directive + mode_instruction
                 
-                api_messages = [{"role": "system", "content": system_content}]
+             api_messages = [{"role": "system", "content": system_content}]
                 for m in st.session_state.messages:
                     api_messages.append({"role": m["role"], "content": m["content"]})
 
-                completion = client.chat.completions.create(
-                    model=model_name,
-                    messages=api_messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens
-                )
-                
-                if completion and completion.choices:
-                    raw_response = completion.choices[0].message.content
+                try:
+                    completion = client.chat.completions.create(
+                        model=model_name,
+                        messages=api_messages,
+                        temperature=temperature,
+                        max_tokens=max_tokens
+                    )
                     
-                    # Clean out any accidental <think> tags or reasoning wrappers
-                    response_text = re.sub(r'<think>.*?</think>', '', raw_response, flags=re.DOTALL).strip()
-                    
-                    st.markdown(response_text)
-                    message_entry = {"role": "assistant", "content": response_text}
-                    st.session_state.messages.append(message_entry)
-                    st.rerun()
-                else:
-                    st.error("Received an empty response from the model.")
-                
-            except Exception as e:
-                st.error(f"Featherless API Error: {e}")
+                    if completion and completion.choices:
+                        raw_response = completion.choices[0].message.content
+                        
+                        # Clean out any accidental <think> tags or reasoning wrappers
+                        response_text = re.sub(r'<think>.*?</think>', '', raw_response, flags=re.DOTALL).strip()
+                        
+                        st.markdown(response_text)
+                        message_entry = {"role": "assistant", "content": response_text}
+                        st.session_state.messages.append(message_entry)
+                        st.rerun()
+                    else:
+                        st.error("Received an empty response from the model.")
+                        
+                except Exception as e:
+                    st.error(f"Featherless API Error: {e}")
 
 # --- FEEDBACK FORM FOR LATEST ASSISTANT RESPONSE ---
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "assistant":
