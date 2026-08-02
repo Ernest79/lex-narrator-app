@@ -241,7 +241,9 @@ if prompt := st.chat_input("Speak with ALEX..."):
     with st.chat_message("assistant"):
         with st.spinner("ALEX is thinking..."):
             try:
-               # Apply Mode Overlay instructions based on dropdown selection
+
+
+# Apply Mode Overlay instructions based on dropdown selection
                 mode_instruction = ""
                 if "Mode 1" in alex_mode:
                     mode_instruction = "\n\n[Active Mode Override: Take Charge. Be directive, confident, and unapologetically in control while staying within character boundaries.]"
@@ -257,7 +259,7 @@ if prompt := st.chat_input("Speak with ALEX..."):
                 
                 system_content = edited_persona + "\n\n" + edited_lore + anti_thinking_directive + mode_instruction
                 
-             api_messages = [{"role": "system", "content": system_content}]
+                api_messages = [{"role": "system", "content": system_content}]
                 for m in st.session_state.messages:
                     api_messages.append({"role": m["role"], "content": m["content"]})
 
