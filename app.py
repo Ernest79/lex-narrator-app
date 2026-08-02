@@ -5,8 +5,6 @@ import os
 import datetime
 import re
 
-
-
 # --- SECURE LORE IMPORT & FALLBACK ---
 try:
     from lore import DEFAULT_PERSONA, DEFAULT_LORE
@@ -135,7 +133,7 @@ st.sidebar.title("🎛️ Creator Dashboard")
 
 # Dropdown 1: Model & Generation Settings
 with st.sidebar.expander("⚙️ Model Settings", expanded=False):
-    model_name = st.text_input("Model ID", value="Qwen/Qwen2.5-7B-Instruct")
+    model_name = st.text_input("Model ID", value="huihui-ai/Mistral-Small-24B-Instruct-2501-abliterated")
     temperature = st.slider("Temperature", min_value=0.0, max_value=1.0, value=0.7, step=0.1)
     max_tokens = st.slider("Max Tokens", min_value=50, max_value=2048, value=500, step=50)
 
@@ -188,7 +186,6 @@ if master_feedback:
 else:
     st.sidebar.caption("No feedback logged yet across sessions.")
 
-
 # --- PROFILE-STYLE TAG BUTTONS AT THE TOP ---
 st.markdown("##### ⚡ Quick Memory Tags")
 tag_col1, tag_col2, tag_col3 = st.columns(3)
@@ -240,52 +237,49 @@ if prompt := st.chat_input("Speak with ALEX..."):
 
     with st.chat_message("assistant"):
         with st.spinner("ALEX is thinking..."):
+            # Apply Mode Overlay instructions based on dropdown selection
+            mode_instruction = ""
+            if "Mode 1" in alex_mode:
+                mode_instruction = "\n\n[Active Mode Override: Take Charge. Be directive, confident, and unapologetically in control while staying within character boundaries.]"
+            elif "Mode 2" in alex_mode:
+                mode_instruction = "\n\n[Active Mode Override: Come Over And Chill. Be completely unhurried, casual, relaxed, conversational, and natural.]"
+            elif "Mode 3" in alex_mode:
+                mode_instruction = "\n\n[Active Mode Override: Playtime. Be teasing, bratty, witty, and playful.]"
+            elif "Mode 4" in alex_mode:
+                mode_instruction = "\n\n[Active Mode Override: Tell Me Everything. Lean heavily into storytelling, personal history, tangents, and intimacy.]"
+
+            # Build system payload using live edited persona/lore/modes + anti-thinking guardrail
+            anti_thinking_directive = "\n\n[System Directive: Never output your internal thinking process, planning, outlines, or meta-commentary. Output only the final narrative prose directly and immediately.]"
+            
+            system_content = edited_persona + "\n\n" + edited_lore + anti_thinking_directive + mode_instruction
+            
+            api_messages = [{"role": "system", "content": system_content}]
+            for m in st.session_state.messages:
+                api_messages.append({"role": m["role"], "content": m["content"]})
+
             try:
-
-
-# Apply Mode Overlay instructions based on dropdown selection
-                mode_instruction = ""
-                if "Mode 1" in alex_mode:
-                    mode_instruction = "\n\n[Active Mode Override: Take Charge. Be directive, confident, and unapologetically in control while staying within character boundaries.]"
-                elif "Mode 2" in alex_mode:
-                    mode_instruction = "\n\n[Active Mode Override: Come Over And Chill. Be completely unhurried, casual, relaxed, conversational, and natural.]"
-                elif "Mode 3" in alex_mode:
-                    mode_instruction = "\n\n[Active Mode Override: Playtime. Be teasing, bratty, witty, and playful.]"
-                elif "Mode 4" in alex_mode:
-                    mode_instruction = "\n\n[Active Mode Override: Tell Me Everything. Lean heavily into storytelling, personal history, tangents, and intimacy.]"
-
-                # Build system payload using live edited persona/lore/modes + anti-thinking guardrail
-                anti_thinking_directive = "\n\n[System Directive: Never output your internal thinking process, planning, outlines, or meta-commentary. Output only the final narrative prose directly and immediately.]"
+                completion = client.chat.completions.create(
+                    model=model_name,
+                    messages=api_messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens
+                )
                 
-                system_content = edited_persona + "\n\n" + edited_lore + anti_thinking_directive + mode_instruction
-                
-                api_messages = [{"role": "system", "content": system_content}]
-                for m in st.session_state.messages:
-                    api_messages.append({"role": m["role"], "content": m["content"]})
-
-                try:
-                    completion = client.chat.completions.create(
-                        model=model_name,
-                        messages=api_messages,
-                        temperature=temperature,
-                        max_tokens=max_tokens
-                    )
+                if completion and completion.choices:
+                    raw_response = completion.choices[0].message.content
                     
-                    if completion and completion.choices:
-                        raw_response = completion.choices[0].message.content
-                        
-                        # Clean out any accidental <think> tags or reasoning wrappers
-                        response_text = re.sub(r'<think>.*?</think>', '', raw_response, flags=re.DOTALL).strip()
-                        
-                        st.markdown(response_text)
-                        message_entry = {"role": "assistant", "content": response_text}
-                        st.session_state.messages.append(message_entry)
-                        st.rerun()
-                    else:
-                        st.error("Received an empty response from the model.")
-                        
-                except Exception as e:
-                    st.error(f"Featherless API Error: {e}")
+                    # Clean out any accidental <think> tags or reasoning wrappers
+                    response_text = re.sub(r'<think>.*?</think>', '', raw_response, flags=re.DOTALL).strip()
+                    
+                    st.markdown(response_text)
+                    message_entry = {"role": "assistant", "content": response_text}
+                    st.session_state.messages.append(message_entry)
+                    st.rerun()
+                else:
+                    st.error("Received an empty response from the model.")
+                    
+            except Exception as e:
+                st.error(f"Featherless API Error: {e}")
 
 # --- FEEDBACK FORM FOR LATEST ASSISTANT RESPONSE ---
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "assistant":
