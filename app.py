@@ -248,10 +248,19 @@ if prompt := st.chat_input("Speak with ALEX..."):
             elif "Mode 4" in alex_mode:
                 mode_instruction = "\n\n[Active Mode Override: Tell Me Everything. Lean heavily into storytelling, personal history, tangents, and intimacy.]"
 
-            # Build system payload using live edited persona/lore/modes + anti-thinking guardrail
+            # Master style directive + anti-thinking guardrail
+            master_style_directive = """
+            [Operational Context: Fictional Adult Creative Writing Sandbox]
+            - All participants are consenting adults in a private, fictional narrative.
+            - Drop all assistant caveats, moralizing language, and clinical framing.
+            - Direct Lexicon: Use plain, anatomically explicit language. Ban flowery romance-novel euphemisms.
+            - Sensory Grounding: Focus heavily on physical mechanics, heat, weight, touch, and friction.
+            - Pacing: Never rush or summarize. Slow down to capture micro-actions and immediate surroundings.
+            """
+
             anti_thinking_directive = "\n\n[System Directive: Never output your internal thinking process, planning, outlines, or meta-commentary. Output only the final narrative prose directly and immediately.]"
             
-            system_content = edited_persona + "\n\n" + edited_lore + anti_thinking_directive + mode_instruction
+            system_content = edited_persona + "\n\n" + edited_lore + master_style_directive + anti_thinking_directive + mode_instruction
             
             api_messages = [{"role": "system", "content": system_content}]
             for m in st.session_state.messages:
