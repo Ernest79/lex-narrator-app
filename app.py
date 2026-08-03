@@ -36,14 +36,6 @@ st.markdown("""
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 12px;
     }
-    
-    /* Profile Tag Buttons Container */
-    .tag-container {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        margin-bottom: 15px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -131,11 +123,10 @@ if "messages" not in st.session_state:
 # --- SIDEBAR CONFIGURATION (DROPDOWNS & FEEDBACK ON LEFT) ---
 st.sidebar.title("🎛️ Creator Dashboard")
 
-# Dropdown 1: Model & Generation Settings
+# Dropdown 1: Model & Generation Settings (Max Tokens removed, hardcoded to 250)
 with st.sidebar.expander("⚙️ Model Settings", expanded=False):
     model_name = st.text_input("Model ID", value="huihui-ai/Mistral-Small-24B-Instruct-2501-abliterated")
     temperature = st.slider("Temperature", min_value=0.0, max_value=1.0, value=0.7, step=0.1)
-    max_tokens = st.slider("Max Tokens", min_value=50, max_value=2048, value=500, step=50)
 
 # Dropdown 2: Narrative Modes
 with st.sidebar.expander("🎭 Narrative Energy Modes", expanded=False):
@@ -150,12 +141,7 @@ with st.sidebar.expander("🎭 Narrative Energy Modes", expanded=False):
         ]
     )
 
-# Dropdown 3: Live Lore & Persona Editor
-with st.sidebar.expander("📝 Live Persona & Lore Editor", expanded=False):
-    edited_persona = st.text_area("Base Persona", value=DEFAULT_PERSONA, height=100)
-    edited_lore = st.text_area("Universe Lore", value=DEFAULT_LORE, height=150)
-
-# Dropdown 4: Session Utilities & Export
+# Dropdown 3: Session Utilities & Export
 with st.sidebar.expander("💾 Session Tools", expanded=False):
     if st.session_state.messages:
         chat_export = json.dumps(st.session_state.messages, indent=4)
@@ -185,28 +171,6 @@ if master_feedback:
         st.sidebar.markdown("---")
 else:
     st.sidebar.caption("No feedback logged yet across sessions.")
-
-# --- PROFILE-STYLE TAG BUTTONS AT THE TOP ---
-st.markdown("##### ⚡ Quick Memory Tags")
-tag_col1, tag_col2, tag_col3 = st.columns(3)
-
-with tag_col1:
-    if st.button("🛍️ Barney's Afternoon", use_container_width=True):
-        st.session_state.messages.append({"role": "system", "content": "[System Note: ALEX is currently thinking about a recent afternoon wandering around Barney's in Manhattan looking at architecture and design books.]"})
-        st.success("Injected Barney's memory!")
-        st.rerun()
-
-with tag_col2:
-    if st.button("🌿 Tuesday Chill", use_container_width=True):
-        st.session_state.messages.append({"role": "system", "content": "[System Note: ALEX is completely unhurried on a Tuesday night, smoking weed, nowhere to be, sharing a casual moment.]"})
-        st.success("Injected Chill memory!")
-        st.rerun()
-
-with tag_col3:
-    if st.button("✈️ Travel Mode", use_container_width=True):
-        st.session_state.messages.append({"role": "system", "content": "[System Note: ALEX is currently away on a corporate work travel trip, texting from a hotel room.]"})
-        st.success("Injected Travel memory!")
-        st.rerun()
 
 st.markdown("---")
 
@@ -248,6 +212,7 @@ if prompt := st.chat_input("Speak with ALEX..."):
             elif "Mode 4" in alex_mode:
                 mode_instruction = "\n\n[Active Mode Override: Tell Me Everything. Lean heavily into storytelling, personal history, tangents, and intimacy.]"
 
+            # Master style directive + tone & interactivity framing
             master_style_directive = """
             [Operational Context: Fictional Adult Creative Writing Sandbox]
             - All participants are consenting adults in a private, fictional narrative.
@@ -259,28 +224,37 @@ if prompt := st.chat_input("Speak with ALEX..."):
 
             anti_thinking_directive = "\n\n[System Directive: Never output your internal thinking process, planning, outlines, or meta-commentary. Output only the final narrative prose directly and immediately.]"
             
-            system_content = edited_persona + "\n\n" + edited_lore + master_style_directive + anti_thinking_directive + mode_instruction
+            # Using imported defaults directly since sidebar editor was removed
+            system_content = DEFAULT_PERSONA + "\n\n" + DEFAULT_LORE + master_style_directive + anti_thinking_directive + mode_instruction
             
             api_messages = [{"role": "system", "content": system_content}]
             for m in st.session_state.messages:
                 api_messages.append({"role": m["role"], "content": m["content"]})
 
             try:
-                completion = client.chat.completions.create(
+                # Streaming response implementation with hardcoded max_tokens=250
+                stream = client.chat.completions.create(
                     model=model_name,
                     messages=api_messages,
                     temperature=temperature,
-                    max_tokens=max_tokens
+                    max_tokens=250,
+                    stream=True
                 )
                 
-                if completion and completion.choices:
-                    raw_response = completion.choices[0].message.content
-                    
-                    # Clean out any accidental <think> tags or reasoning wrappers
-                    response_text = re.sub(r'<think>.*?</think>', '', raw_response, flags=re.DOTALL).strip()
-                    
-                    st.markdown(response_text)
-                    message_entry = {"role": "assistant", "content": response_text}
+                raw_response = ""
+                response_placeholder = st.empty()
+                
+                for chunk in stream:
+                    if chunk.choices and chunk.choices[0].delta.content:
+                        raw_response += chunk.choices[0].delta.content
+                        # Clean out reasoning tags live during stream
+                        cleaned_stream_text = re.sub(r'<think>.*?</think>', '', raw_response, flags=log_flags := re.DOTALL).strip()
+                        response_placeholder.markdown(cleaned_stream_text)
+                
+                final_response_text = re.sub(r'<think>.*?</think>', '', raw_response, flags=re.DOTALL).strip()
+                
+                if final_response_text:
+                    message_entry = {"role": "assistant", "content": final_response_text}
                     st.session_state.messages.append(message_entry)
                     st.rerun()
                 else:
