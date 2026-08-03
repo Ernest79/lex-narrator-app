@@ -244,11 +244,14 @@ if prompt := st.chat_input("Speak with ALEX..."):
                 raw_response = ""
                 response_placeholder = st.empty()
                 
+                raw_response = ""
+                response_placeholder = st.empty()
+                
                 for chunk in stream:
                     if chunk.choices and chunk.choices[0].delta.content:
                         raw_response += chunk.choices[0].delta.content
                         # Clean out reasoning tags live during stream
-                        cleaned_stream_text = re.sub(r'<think>.*?</think>', '', raw_response, flags=log_flags := re.DOTALL).strip()
+                        cleaned_stream_text = re.sub(r'<think>.*?</think>', '', raw_response, flags=re.DOTALL).strip()
                         response_placeholder.markdown(cleaned_stream_text)
                 
                 final_response_text = re.sub(r'<think>.*?</think>', '', raw_response, flags=re.DOTALL).strip()
